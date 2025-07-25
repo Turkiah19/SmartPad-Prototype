@@ -74,11 +74,11 @@ if st.sidebar.button("Get Recommendation"):
 
     # ─── Map Visualization ────────────────────────────────
     st.subheader("🗺️ Landing Zone Map")
-    m = folium.Map(
-        location=[lat, lon],
-        zoom_start=15,
-        tiles="Stamen Terrain",
-    )
+   m = folium.Map(
+    location=[lat, lon],
+    zoom_start=15,
+    tiles="OpenStreetMap",  # built‑in, no attribution needed
+)
     # Obstacles
     for obs in params["obstacles"]:
         folium.CircleMarker(
