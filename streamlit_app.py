@@ -45,7 +45,12 @@ params = SCENARIOS[scenario_name]
 st.sidebar.header("Flight Inputs (override)")
 lat = st.sidebar.number_input("Latitude", value=params["gps"].latitude, format="%.4f")
 lon = st.sidebar.number_input("Longitude", value=params["gps"].longitude, format="%.4f")
-wind_speed = st.sidebar.slider("Wind speed (knots)", 0, 80, params["weather"].wind_speed)
+wind_speed = st.sidebar.slider(
+    "Wind speed (knots)",
+    0,
+    80,
+    int(params["weather"].wind_speed)  # <-- cast to int
+)
 wind_dir = st.sidebar.selectbox("Wind direction", ["N","NE","E","SE","S","SW","W","NW"], index=["N","NE","E","SE","S","SW","W","NW"].index(params["weather"].wind_direction))
 model = st.sidebar.text_input("Aircraft model", value=params["aircraft"].model)
 weight = st.sidebar.number_input("Aircraft weight (kg)", 1000, 15000, params["aircraft"].weight)
