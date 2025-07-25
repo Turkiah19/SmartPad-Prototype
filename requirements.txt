@@ -4,3 +4,5 @@ pydantic
 streamlit
 pandas
 pydeck
+streamlit-folium
+fpdf
