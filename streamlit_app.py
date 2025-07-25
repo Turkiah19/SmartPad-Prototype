@@ -53,7 +53,12 @@ wind_speed = st.sidebar.slider(
 )
 wind_dir = st.sidebar.selectbox("Wind direction", ["N","NE","E","SE","S","SW","W","NW"], index=["N","NE","E","SE","S","SW","W","NW"].index(params["weather"].wind_direction))
 model = st.sidebar.text_input("Aircraft model", value=params["aircraft"].model)
-weight = st.sidebar.number_input("Aircraft weight (kg)", 1000, 15000, params["aircraft"].weight)
+weight = st.sidebar.number_input(
+    "Aircraft weight (kg)",
+    1000,
+    15000,
+    int(params["aircraft"].weight)  # cast float default to int
+)
 
 # ─── Run Recommendation ────────────────────────────────
 if st.sidebar.button("Get Recommendation"):
