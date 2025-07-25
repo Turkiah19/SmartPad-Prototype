@@ -2,7 +2,6 @@ fastapi
 uvicorn
 pydantic
 streamlit
-pandas
-pydeck
+folium
 streamlit-folium
 fpdf
