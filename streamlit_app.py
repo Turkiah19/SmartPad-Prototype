@@ -11,7 +11,8 @@ from app.models import LandingRequest, GPS, Weather, Aircraft
 if "resp" not in st.session_state:
     st.session_state.resp = None
     st.session_state.inputs = {}
-    st.session_state.params = {}
+    st.session_state.city = None
+    st.session_state.weather = None
 
 # ─── Page Config ────────────────────────────────────────
 st.set_page_config(
@@ -20,44 +21,31 @@ st.set_page_config(
 )
 st.title("🚁 SmartPad VTOL Landing Assistant")
 
-# ─── Helipad Information ─────────────────────────────────
-HELIPAD_NAME = "KFMC (King Fahad Medical City)"
-HELIPAD_LAT = 24 + 41.27 / 60  # N24°41.27
-HELIPAD_LON = 46 + 42.31 / 60  # E46°42.31
-
-# ─── Scenario Presets with Weather Conditions ────────────
-SCENARIOS = {
-    "Clear Skies (Riyadh Center)": {
-        "weather": Weather(wind_speed=10, wind_direction="NE"),
-        "condition": "Clear",
-        "aircraft": Aircraft(model="AW139", weight=5500),
+# ─── City Definitions ────────────────────────────────────
+CITIES = {
+    "Riyadh (KFMC)": {
+        "gps": GPS(latitude=24.6880, longitude=46.7052),  # KFMC decimal
         "obstacles": [
-            {"lat": 24.7140, "lon": 46.6760, "height": 50},
-            {"lat": 24.7130, "lon": 46.6740, "height": 80},
+            {"lat": 24.6890, "lon": 46.7060, "height": 50},
+            {"lat": 24.6875, "lon": 46.7040, "height": 80},
         ],
     },
-    "Rainstorm (Jeddah Coast)": {
-        "weather": Weather(wind_speed=15, wind_direction="SE"),
-        "condition": "Rain",
-        "aircraft": Aircraft(model="AW139", weight=5400),
+    "Jeddah": {
+        "gps": GPS(latitude=21.4858, longitude=39.1925),
         "obstacles": [
             {"lat": 21.4870, "lon": 39.1935, "height": 30},
             {"lat": 21.4840, "lon": 39.1910, "height": 60},
         ],
     },
-    "Foggy Morning (Taif)": {
-        "weather": Weather(wind_speed=5, wind_direction="N"),
-        "condition": "Fog",
-        "aircraft": Aircraft(model="AW139", weight=5300),
+    "Taif": {
+        "gps": GPS(latitude=21.2854, longitude=40.4058),
         "obstacles": [
             {"lat": 21.2860, "lon": 40.4065, "height": 40},
             {"lat": 21.2840, "lon": 40.4040, "height": 70},
         ],
     },
-    "Dust Storm (Dammam)": {
-        "weather": Weather(wind_speed=20, wind_direction="NW"),
-        "condition": "Dust Storm",
-        "aircraft": Aircraft(model="AW139", weight=5600),
+    "Dammam": {
+        "gps": GPS(latitude=26.3927, longitude=49.9777),
         "obstacles": [
             {"lat": 26.3935, "lon": 49.9785, "height": 20},
             {"lat": 26.3910, "lon": 49.9760, "height": 90},
@@ -65,42 +53,72 @@ SCENARIOS = {
     },
 }
 
-# ─── Sidebar: Helipad & Scenario ─────────────────────────
-st.sidebar.header("Helipad Location and Name")
-st.sidebar.markdown(f"**{HELIPAD_NAME}**")
-st.sidebar.markdown(f"Coordinates: N24°41.27 E46°42.31")
+# ─── Weather Options ────────────────────────────────────
+WEATHERS = {
+    "Clear": Weather(wind_speed=10, wind_direction="NE"),
+    "Rain": Weather(wind_speed=15, wind_direction="SE"),
+    "Fog": Weather(wind_speed=5, wind_direction="N"),
+    "Dust Storm": Weather(wind_speed=20, wind_direction="NW"),
+}
 
-st.sidebar.header("Demo Scenario")
-scenario_name = st.sidebar.selectbox("Choose a scenario:", list(SCENARIOS.keys()))
-params = SCENARIOS[scenario_name]
+# ─── Sidebar: Select City and Weather ───────────────────
+st.sidebar.header("Helipad City")
+city = st.sidebar.selectbox("Select city:", list(CITIES.keys()))
+params_city = CITIES[city]
+
+st.sidebar.header("Weather Condition")
+weather_cond = st.sidebar.selectbox("Select weather:", list(WEATHERS.keys()))
+params_weather = WEATHERS[weather_cond]
+
+# ─── Flight Inputs ──────────────────────────────────────
+st.sidebar.header("Flight Inputs")
+wind_speed = st.sidebar.slider(
+    "Wind speed (knots)", 0, 80, int(params_weather.wind_speed)
+)
+wind_dir = st.sidebar.selectbox(
+    "Wind direction",
+    ["N","NE","E","SE","S","SW","W","NW"],
+    index=["N","NE","E","SE","S","SW","W","NW"].index(params_weather.wind_direction)
+)
+weight = st.sidebar.number_input(
+    "Aircraft weight (kg)", 1000, 15000, 5500
+)
 
 # ─── Trigger Recommendation ─────────────────────────────
 if st.sidebar.button("Get Recommendation"):
-    # Build request with static helipad GPS
     req = LandingRequest(
-        gps=GPS(latitude=HELIPAD_LAT, longitude=HELIPAD_LON),
-        weather=params["weather"],
-        aircraft=params["aircraft"],
+        gps=params_city["gps"],
+        weather=Weather(wind_speed=wind_speed, wind_direction=wind_dir),
+        aircraft=Aircraft(model="AW139", weight=weight),
     )
-    # Override PC based on weight
-    if req.aircraft.weight > 6000:
-        req_pc = "PC2"
-    else:
-        req_pc = "PC1"
+    # Determine Performance Class
+    pc = "PC2" if weight > 6000 else "PC1"
     resp = generate_recommendation(req)
-    resp.path_type = req_pc
+    resp.path_type = pc
+    # Store for persistent display
     st.session_state.resp = resp
-    st.session_state.params = params
+    st.session_state.inputs = {
+        "weight": weight,
+        "weather_cond": weather_cond,
+        "wind_speed": wind_speed,
+        "wind_dir": wind_dir,
+    }
+    st.session_state.city = city
 
 # ─── Persistent Display ─────────────────────────────────
 if st.session_state.resp:
     resp = st.session_state.resp
-    params = st.session_state.params
+    inputs = st.session_state.inputs
+    city = st.session_state.city
+    params_city = CITIES[city]
 
-    # ─── Map Visualization ────────────────────────────────
+    lat = params_city["gps"].latitude
+    lon = params_city["gps"].longitude
+
+    # Map
     st.subheader("🗺️ Landing Zone Map")
-    m = folium.Map(location=[HELIPAD_LAT, HELIPAD_LON], zoom_start=15, tiles="OpenStreetMap")
-    for obs in params["obstacles"]:
+    m = folium.Map(location=[lat, lon], zoom_start=15, tiles="OpenStreetMap")
+    for obs in params_city["obstacles"]:
         folium.CircleMarker(
             location=[obs["lat"], obs["lon"]],
             radius=obs["height"] * 0.2,
@@ -109,28 +127,23 @@ if st.session_state.resp:
             fill_opacity=0.6,
         ).add_to(m)
     folium.Marker(
-        [HELIPAD_LAT, HELIPAD_LON],
-        icon=folium.Icon(color="green", icon="helicopter", prefix="fa")
+        [lat, lon], icon=folium.Icon(color="green", icon="helicopter", prefix="fa")
     ).add_to(m)
     st_folium(m, width="100%", height=500)
 
-    # ─── Recommendation Details ───────────────────────────
+    # Recommendation Details
     st.subheader("🛬 Landing Recommendation")
-    # Performance Class
-    performance_label = (
-        "Within PC1 limits" if resp.path_type == "PC1" else "Within PC2 limits"
-    )
-    st.markdown(f"**Performance Class:** {performance_label}")
-    # Approach Direction
-    st.markdown("**Approach Direction:** S185")
-    # Landing Profile
-    st.markdown("**Landing Profile:** Confined area AW139 profile")
-    st.markdown("**LDP:** 170ft")
-    # Risk Score
+    st.markdown(f"**City:** {city}")
+    st.markdown(f"**Weather:** {inputs['weather_cond']}")
+    performance_desc = "Within PC2 limits" if resp.path_type == "PC2" else "Within PC1 limits"
+    st.markdown(f"**Performance Class:** {performance_desc}")
+    st.markdown(f"**Approach Direction:** S185")
+    st.markdown(f"**Landing Profile:** Confined area AW139 profile")
+    st.markdown(f"**LDP:** 170ft")
     risk_label = "Low" if resp.risk_score <= 50 else "High"
     st.markdown(f"**Risk Score:** {resp.risk_score} {risk_label}")
 
-    # ─── PDF Report Generation & Download ─────────────────
+    # PDF Report
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
@@ -138,13 +151,12 @@ if st.session_state.resp:
     pdf.set_font("Arial", size=12)
     pdf.ln(5)
     pdf.cell(0, 8, f"Date/Time: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}", ln=True)
-    pdf.cell(0, 8, f"Helipad: {HELIPAD_NAME} ({HELIPAD_LAT:.6f}, {HELIPAD_LON:.6f})", ln=True)
-    pdf.cell(0, 8, f"Scenario: {scenario_name}", ln=True)
-    pdf.cell(0, 8, f"Condition: {params['condition']}", ln=True)
-    pdf.cell(0, 8, f"Wind: {resp.risk_score} kt {params['weather'].wind_direction}", ln=True)
-    pdf.cell(0, 8, f"Aircraft: {params['aircraft'].model}, {params['aircraft'].weight} kg", ln=True)
+    pdf.cell(0, 8, f"City: {city}", ln=True)
+    pdf.cell(0, 8, f"Weather: {inputs['weather_cond']}", ln=True)
+    pdf.cell(0, 8, f"Wind: {inputs['wind_speed']} kt {inputs['wind_dir']}", ln=True)
+    pdf.cell(0, 8, f"Aircraft Weight: {inputs['weight']} kg", ln=True)
     pdf.ln(5)
-    pdf.cell(0, 8, f"Performance Class: {performance_label}", ln=True)
+    pdf.cell(0, 8, f"Performance Class: {performance_desc}", ln=True)
     pdf.cell(0, 8, f"Approach Direction: S185", ln=True)
     pdf.cell(0, 8, f"Landing Profile: Confined area AW139 profile", ln=True)
     pdf.cell(0, 8, f"LDP: 170ft", ln=True)
