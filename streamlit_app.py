@@ -34,49 +34,43 @@ with aircraft_col:
 st.header("Flight Inputs")
 col1, col2 = st.columns(2)
 with col1:
-    city = st.selectbox(
-        "City (Helipad)", 
-        ["Riyadh (KFMC)", "Jeddah", "Taif", "Dammam"]
-    )
-    weather_cond = st.selectbox(
-        "Weather Condition", 
-        ["Clear", "Rain", "Fog", "Dust Storm"]
-    )
+    city = st.selectbox("City (Helipad)", [
+        "Riyadh (KFMC)", "Jeddah", "Taif", "Dammam"
+    ])
+    weather_cond = st.selectbox("Weather Condition", [
+        "Clear", "Rain", "Fog", "Dust Storm"
+    ])
 with col2:
     wind_speed = st.slider("Wind speed (knots)", 0, 80, 10)
-    wind_dir   = st.selectbox(
-        "Wind direction", 
-        ["N","NE","E","SE","S","SW","W","NW"]
-    )
-    weight     = st.number_input(
-        "Aircraft weight (kg)", 1000, 15000, 5500
-    )
+    wind_dir   = st.selectbox("Wind direction", 
+        ["N","NE","E","SE","S","SW","W","NW"])
+    weight     = st.number_input("Aircraft weight (kg)", 1000, 15000, 5500)
 
 # ─── City & Scenario Data ───────────────────────────────
 SCENARIOS = {
     "Riyadh (KFMC)": {
-        "gps": GPS(latitude=24.688000, longitude=46.705200),
+        "gps": GPS(24.688000, 46.705200),
         "obstacles": [
             {"lat": 24.6890, "lon": 46.7060, "height": 50},
             {"lat": 24.6875, "lon": 46.7040, "height": 80},
         ],
     },
     "Jeddah": {
-        "gps": GPS(latitude=21.485800, longitude=39.192500),
+        "gps": GPS(21.485800, 39.192500),
         "obstacles": [
             {"lat": 21.4870, "lon": 39.1935, "height": 30},
             {"lat": 21.4840, "lon": 39.1910, "height": 60},
         ],
     },
     "Taif": {
-        "gps": GPS(latitude=21.285400, longitude=40.405800),
+        "gps": GPS(21.285400, 40.405800),
         "obstacles": [
             {"lat": 21.2860, "lon": 40.4065, "height": 40},
             {"lat": 21.2840, "lon": 40.4040, "height": 70},
         ],
     },
     "Dammam": {
-        "gps": GPS(latitude=26.392700, longitude=49.977700),
+        "gps": GPS(26.392700, 49.977700),
         "obstacles": [
             {"lat": 26.3935, "lon": 49.9785, "height": 20},
             {"lat": 26.3910, "lon": 49.9760, "height": 90},
@@ -92,7 +86,7 @@ if st.button("Get Recommendation"):
         aircraft=Aircraft(model="AW139", weight=weight),
     )
     resp = generate_recommendation(req)
-    st.session_state.resp = resp
+    st.session_state.resp   = resp
     st.session_state.inputs = {
         "city": city,
         "weather": weather_cond,
@@ -108,39 +102,23 @@ if "resp" in st.session_state:
     data   = SCENARIOS[inputs["city"]]
     lat, lon = data["gps"].latitude, data["gps"].longitude
 
-    # 1) Landing Zone Map
+    # Map with obstacles
     st.subheader("Landing Zone Map")
-    m = folium.Map(location=[lat, lon], zoom_start=15, tiles="OpenStreetMap")
-
-    # a) Cleared landing area (200 m radius)
-    folium.Circle(
+    m = folium.Map(
         location=[lat, lon],
-        radius=200,
-        color="green",
-        fill=True,
-        fill_opacity=0.2,
-        tooltip="Cleared Landing Area (200 m radius)"
-    ).add_to(m)
-
-    # b) Obstacles
+        zoom_start=15,
+        tiles="OpenStreetMap"
+    )
     for obs in data["obstacles"]:
         folium.CircleMarker(
             location=[obs["lat"], obs["lon"]],
             radius=obs["height"] * 0.2,
-            color="red",
-            fill=True,
-            fill_opacity=0.6,
-            tooltip=f"Obstacle: {obs['height']} ft"
+            color="red", fill=True, fill_opacity=0.6
         ).add_to(m)
-
-    # c) Helipad marker
     folium.Marker(
         [lat, lon],
-        icon=folium.Icon(color="blue", icon="home", prefix="fa"),
-        tooltip="Helipad"
+        icon=folium.Icon(color="green", icon="helicopter", prefix="fa")
     ).add_to(m)
-
-    # d) Landing direction arrow
     OFF = {
         "N":  (0.01,   0),
         "NE": (0.007, 0.007),
@@ -152,15 +130,14 @@ if "resp" in st.session_state:
         "NW": (0.007,-0.007),
     }
     dlat, dlon = OFF[resp.direction]
-    folium.PolyLine(
-        [[lat, lon], [lat + dlat, lon + dlon]],
-        color="blue", weight=3,
-        tooltip=f"Landing Dir: {resp.direction}"
-    ).add_to(m)
+    folium.PolyLine([
+        [lat, lon],
+        [lat + dlat, lon + dlon]
+    ], color="blue", weight=3).add_to(m)
 
     st_folium(m, width="100%", height=400)
 
-    # 2) Landing Recommendation Details
+    # Recommendation details
     st.subheader("Landing Recommendation")
     st.markdown(f"- **City:** {inputs['city']}")
     st.markdown(f"- **Weather:** {inputs['weather']}")
@@ -172,7 +149,7 @@ if "resp" in st.session_state:
     risk_label = "Low" if resp.risk_score <= 50 else "High"
     st.markdown(f"- **Risk Score:** {resp.risk_score} ({risk_label})")
 
-    # 3) PDF Download
+    # PDF download
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
