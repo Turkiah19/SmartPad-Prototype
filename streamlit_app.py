@@ -44,28 +44,28 @@ with col2:
 # ─── City & Scenario Data ───────────────────────────────
 SCENARIOS = {
     "Riyadh (KFMC)": {
-        "gps": GPS(24.688000, 46.705200),
+        "gps": GPS(latitude=24.688000, longitude=46.705200),
         "obstacles": [
             {"lat": 24.6890, "lon": 46.7060, "height": 50},
             {"lat": 24.6875, "lon": 46.7040, "height": 80},
         ],
     },
     "Jeddah": {
-        "gps": GPS(21.485800, 39.192500),
+        "gps": GPS(latitude=21.485800, longitude=39.192500),
         "obstacles": [
             {"lat": 21.4870, "lon": 39.1935, "height": 30},
             {"lat": 21.4840, "lon": 39.1910, "height": 60},
         ],
     },
     "Taif": {
-        "gps": GPS(21.285400, 40.405800),
+        "gps": GPS(latitude=21.285400, longitude=40.405800),
         "obstacles": [
             {"lat": 21.2860, "lon": 40.4065, "height": 40},
             {"lat": 21.2840, "lon": 40.4040, "height": 70},
         ],
     },
     "Dammam": {
-        "gps": GPS(26.392700, 49.977700),
+        "gps": GPS(latitude=26.392700, longitude=49.977700),
         "obstacles": [
             {"lat": 26.3935, "lon": 49.9785, "height": 20},
             {"lat": 26.3910, "lon": 49.9760, "height": 90},
