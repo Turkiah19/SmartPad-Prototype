@@ -11,7 +11,7 @@ from app.models import LandingRequest, GPS, Weather, Aircraft
 st.set_page_config(page_title="SmartPad VTOL Landing Assistant", layout="wide")
 st.title("SmartPad VTOL Landing Assistant")
 
-# ─── 1) Pilot & Aircraft Static Cards ───────────────────
+# ─── Pilot & Aircraft Info ──────────────────────────────
 st.header("Pilot & Aircraft Information")
 pilot_col, aircraft_col = st.columns(2)
 with pilot_col:
@@ -20,7 +20,7 @@ with pilot_col:
     - **Name:** Capt. Khalid Al-Huwaidi  
     - **License:** CPL IR RW  
     - **Total Hours:** 1500 h  
-    - **Callsign:** Hawk-1
+    - **Callsign:** Hawk-1  
     """)
 with aircraft_col:
     st.subheader("Aircraft Info")
@@ -31,98 +31,120 @@ with aircraft_col:
     - **MTOW Category:** Medium  
     """)
 
-# ─── 2) Flight Inputs (inline) ───────────────────────────
+# ─── Flight Inputs ───────────────────────────────────────
 st.header("Flight Inputs")
-
-# 2a. Static lists for city & weather
-CITIES = {
-    "Riyadh (KFMC)": GPS(latitude=24.688000, longitude=46.705200),
-    "Jeddah":      GPS(latitude=21.485800, longitude=39.192500),
-    "Taif":        GPS(latitude=21.285400, longitude=40.405800),
-    "Dammam":      GPS(latitude=26.392700, longitude=49.977700),
-}
-WEATHERS = {
-    "Clear":      Weather(wind_speed=10, wind_direction="NE"),
-    "Rain":       Weather(wind_speed=15, wind_direction="SE"),
-    "Fog":        Weather(wind_speed=5,  wind_direction="N"),
-    "Dust Storm": Weather(wind_speed=20, wind_direction="NW"),
-}
-
-# 2b. City & Weather selection
 col1, col2 = st.columns(2)
 with col1:
-    city = st.selectbox("City (Helipad)", list(CITIES.keys()))
+    city = st.selectbox("City (Helipad)", [
+        "Riyadh (KFMC)", "Jeddah", "Taif", "Dammam"
+    ])
+    weather_cond = st.selectbox("Weather Condition", [
+        "Clear", "Rain", "Fog", "Dust Storm"
+    ])
 with col2:
-    weather_cond = st.selectbox("Weather Condition", list(WEATHERS.keys()))
+    wind_speed = st.slider("Wind speed (knots)", 0, 80, 10)
+    wind_dir   = st.selectbox("Wind direction", 
+        ["N","NE","E","SE","S","SW","W","NW"])
+    weight     = st.number_input("Aircraft weight (kg)", 1000, 15000, 5500)
 
-# 2c. Wind & Direction & Weight
-col1, col2, col3 = st.columns(3)
-with col1:
-    wind_speed = st.slider(
-        "Wind speed (knots)", 
-        0, 80, 
-        int(WEATHERS[weather_cond].wind_speed)
-    )
-with col2:
-    wind_dir = st.selectbox(
-        "Wind direction",
-        ["N","NE","E","SE","S","SW","W","NW"],
-        index=["N","NE","E","SE","S","SW","W","NW"]
-              .index(WEATHERS[weather_cond].wind_direction)
-    )
-with col3:
-    weight = st.number_input(
-        "Aircraft weight (kg)", 
-        1000, 15000, 
-        value=5500
-    )
+# ─── City & Scenario Data ───────────────────────────────
+SCENARIOS = {
+    "Riyadh (KFMC)": {
+        "gps": GPS(24.688000, 46.705200),
+        "obstacles": [
+            {"lat": 24.6890, "lon": 46.7060, "height": 50},
+            {"lat": 24.6875, "lon": 46.7040, "height": 80},
+        ],
+    },
+    "Jeddah": {
+        "gps": GPS(21.485800, 39.192500),
+        "obstacles": [
+            {"lat": 21.4870, "lon": 39.1935, "height": 30},
+            {"lat": 21.4840, "lon": 39.1910, "height": 60},
+        ],
+    },
+    "Taif": {
+        "gps": GPS(21.285400, 40.405800),
+        "obstacles": [
+            {"lat": 21.2860, "lon": 40.4065, "height": 40},
+            {"lat": 21.2840, "lon": 40.4040, "height": 70},
+        ],
+    },
+    "Dammam": {
+        "gps": GPS(26.392700, 49.977700),
+        "obstacles": [
+            {"lat": 26.3935, "lon": 49.9785, "height": 20},
+            {"lat": 26.3910, "lon": 49.9760, "height": 90},
+        ],
+    },
+}
 
-# ─── 3) Get Recommendation ───────────────────────────────
+# ─── Build & call recommendation ───────────────────────
 if st.button("Get Recommendation"):
-    # Build request
     req = LandingRequest(
-        gps=CITIES[city],
+        gps=SCENARIOS[city]["gps"],
         weather=Weather(wind_speed=wind_speed, wind_direction=wind_dir),
         aircraft=Aircraft(model="AW139", weight=weight),
     )
-    # Call logic
     resp = generate_recommendation(req)
-
-    # Store for display
-    st.session_state.resp = resp
+    st.session_state.resp   = resp
     st.session_state.inputs = {
         "city": city,
-        "weather_cond": weather_cond,
+        "weather": weather_cond,
         "wind_speed": wind_speed,
         "wind_dir": wind_dir,
-        "weight": weight,
+        "weight": weight
     }
 
-# ─── 4) Persistent Display ───────────────────────────────
+# ─── Display map & results ──────────────────────────────
 if "resp" in st.session_state:
     resp   = st.session_state.resp
     inputs = st.session_state.inputs
-    loc    = CITIES[inputs["city"]]
+    data   = SCENARIOS[inputs["city"]]
+    lat, lon = data["gps"].latitude, data["gps"].longitude
 
-    # 4a. Map
+    # Map with obstacles
     st.subheader("Landing Zone Map")
     m = folium.Map(
-        location=[loc.latitude, loc.longitude],
+        location=[lat, lon],
         zoom_start=15,
         tiles="OpenStreetMap"
     )
-    # Mark helipad
+    # Obstacle markers
+    for obs in data["obstacles"]:
+        folium.CircleMarker(
+            location=[obs["lat"], obs["lon"]],
+            radius=obs["height"] * 0.2,
+            color="red", fill=True, fill_opacity=0.6
+        ).add_to(m)
+    # Helipad marker
     folium.Marker(
-        [loc.latitude, loc.longitude],
+        [lat, lon],
         icon=folium.Icon(color="green", icon="helicopter", prefix="fa")
     ).add_to(m)
-    # Obstacles are drawn inside generate_recommendation if desired
+    # Landing direction arrow
+    OFF = {
+        "N":  (0.01,   0),
+        "NE": (0.007, 0.007),
+        "E":  (0,     0.01),
+        "SE": (-0.007,0.007),
+        "S":  (-0.01,  0),
+        "SW": (-0.007,-0.007),
+        "W":  (0,    -0.01),
+        "NW": (0.007,-0.007),
+    }
+    dlat, dlon = OFF[resp.direction]
+    folium.PolyLine([
+        [lat, lon],
+        [lat + dlat, lon + dlon]
+    ], color="blue", weight=3).add_to(m)
+
     st_folium(m, width="100%", height=400)
 
-    # 4b. Recommendation Details
+    # Recommendation details
     st.subheader("Landing Recommendation")
     st.markdown(f"- **City:** {inputs['city']}")
-    st.markdown(f"- **Weather:** {inputs['weather_cond']}")
+    st.markdown(f"- **Weather:** {inputs['weather']}")
     st.markdown(f"- **Landing Type:** {resp.path_type}")
     st.markdown(f"- **Approach Direction:** {resp.direction}")
     st.markdown(f"- **Landing Profile:** Confined area AW139 profile")
@@ -131,7 +153,7 @@ if "resp" in st.session_state:
     risk_label = "Low" if resp.risk_score <= 50 else "High"
     st.markdown(f"- **Risk Score:** {resp.risk_score} ({risk_label})")
 
-    # 4c. PDF Download
+    # PDF download
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
@@ -140,7 +162,7 @@ if "resp" in st.session_state:
     pdf.ln(5)
     pdf.cell(0, 8, f"Date/Time: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}", ln=True)
     pdf.cell(0, 8, f"City: {inputs['city']}", ln=True)
-    pdf.cell(0, 8, f"Weather: {inputs['weather_cond']}", ln=True)
+    pdf.cell(0, 8, f"Weather: {inputs['weather']}", ln=True)
     pdf.cell(0, 8, f"Wind: {inputs['wind_speed']} kt {inputs['wind_dir']}", ln=True)
     pdf.cell(0, 8, f"Aircraft Weight: {inputs['weight']} kg", ln=True)
     pdf.ln(5)
