@@ -11,7 +11,7 @@ from app.models import LandingRequest, GPS, Weather, Aircraft
 st.set_page_config(page_title="SmartPad VTOL Landing Assistant", layout="wide")
 st.title("SmartPad VTOL Landing Assistant")
 
-# ─── Pilot & Aircraft Info ──────────────────────────────
+# ─── 1) Pilot & Aircraft Info ───────────────────────────
 st.header("Pilot & Aircraft Information")
 pilot_col, aircraft_col = st.columns(2)
 with pilot_col:
@@ -30,29 +30,29 @@ with aircraft_col:
     - **MTOW Category:** Medium  
     """)
 
-# ─── Flight Inputs ───────────────────────────────────────
+# ─── 2) Flight Inputs ────────────────────────────────────
 st.header("Flight Inputs")
 col1, col2 = st.columns(2)
 with col1:
     city = st.selectbox(
-        "City (Helipad)", 
+        "City (Helipad)",
         ["Riyadh (KFMC)", "Jeddah", "Taif", "Dammam"]
     )
     weather_cond = st.selectbox(
-        "Weather Condition", 
+        "Weather Condition",
         ["Clear", "Rain", "Fog", "Dust Storm"]
     )
 with col2:
     wind_speed = st.slider("Wind speed (knots)", 0, 80, 10)
     wind_dir   = st.selectbox(
-        "Wind direction", 
-        ["N","NE","E","SE","S","SW","W","NW"]
+        "Wind direction",
+        ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
     )
     weight     = st.number_input(
         "Aircraft weight (kg)", 1000, 15000, 5500
     )
 
-# ─── City & Scenario Data ───────────────────────────────
+# ─── 3) Scenario Data ────────────────────────────────────
 SCENARIOS = {
     "Riyadh (KFMC)": {
         "gps": GPS(latitude=24.688000, longitude=46.705200),
@@ -84,7 +84,7 @@ SCENARIOS = {
     },
 }
 
-# ─── Build & call recommendation ───────────────────────
+# ─── 4) Generate Recommendation ─────────────────────────
 if st.button("Get Recommendation"):
     req = LandingRequest(
         gps=SCENARIOS[city]["gps"],
@@ -92,8 +92,8 @@ if st.button("Get Recommendation"):
         aircraft=Aircraft(model="AW139", weight=weight),
     )
     resp = generate_recommendation(req)
-    st.session_state.resp = resp
-    st.session_state.inputs = {
+    st.session_state.resp    = resp
+    st.session_state.inputs  = {
         "city": city,
         "weather": weather_cond,
         "wind_speed": wind_speed,
@@ -101,18 +101,18 @@ if st.button("Get Recommendation"):
         "weight": weight
     }
 
-# ─── Display map & results ──────────────────────────────
+# ─── 5) Display Map & Results ───────────────────────────
 if "resp" in st.session_state:
     resp   = st.session_state.resp
     inputs = st.session_state.inputs
     data   = SCENARIOS[inputs["city"]]
     lat, lon = data["gps"].latitude, data["gps"].longitude
 
-    # 1) Landing Zone Map
+    # 5a) Map
     st.subheader("Landing Zone Map")
     m = folium.Map(location=[lat, lon], zoom_start=15, tiles="OpenStreetMap")
 
-    # a) Cleared landing area (200 m radius)
+    # Cleared landing area (200 m radius)
     folium.Circle(
         location=[lat, lon],
         radius=200,
@@ -122,7 +122,7 @@ if "resp" in st.session_state:
         tooltip="Cleared Landing Area (200 m radius)"
     ).add_to(m)
 
-    # b) Obstacles
+    # Obstacles
     for obs in data["obstacles"]:
         folium.CircleMarker(
             location=[obs["lat"], obs["lon"]],
@@ -133,14 +133,14 @@ if "resp" in st.session_state:
             tooltip=f"Obstacle: {obs['height']} ft"
         ).add_to(m)
 
-    # c) Helipad marker
+    # Helipad marker
     folium.Marker(
         [lat, lon],
         icon=folium.Icon(color="blue", icon="home", prefix="fa"),
         tooltip="Helipad"
     ).add_to(m)
 
-    # d) Landing direction arrow
+    # Landing direction arrow
     OFF = {
         "N":  (0.01,   0),
         "NE": (0.007, 0.007),
@@ -160,7 +160,7 @@ if "resp" in st.session_state:
 
     st_folium(m, width="100%", height=400)
 
-    # 2) Landing Recommendation Details
+    # 5b) Recommendation Details
     st.subheader("Landing Recommendation")
     st.markdown(f"- **City:** {inputs['city']}")
     st.markdown(f"- **Weather:** {inputs['weather']}")
@@ -172,7 +172,7 @@ if "resp" in st.session_state:
     risk_label = "Low" if resp.risk_score <= 50 else "High"
     st.markdown(f"- **Risk Score:** {resp.risk_score} ({risk_label})")
 
-    # 3) PDF Download
+    # 5c) PDF Download
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
