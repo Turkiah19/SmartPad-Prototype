@@ -34,12 +34,23 @@ with aircraft_col:
 st.header("Flight Inputs")
 col1, col2 = st.columns(2)
 with col1:
-    city = st.selectbox("City (Helipad)", ["Riyadh (KFMC)", "Jeddah", "Taif", "Dammam"])
-    weather_cond = st.selectbox("Weather Condition", ["Clear", "Rain", "Fog", "Dust Storm"])
+    city = st.selectbox(
+        "City (Helipad)", 
+        ["Riyadh (KFMC)", "Jeddah", "Taif", "Dammam"]
+    )
+    weather_cond = st.selectbox(
+        "Weather Condition", 
+        ["Clear", "Rain", "Fog", "Dust Storm"]
+    )
 with col2:
     wind_speed = st.slider("Wind speed (knots)", 0, 80, 10)
-    wind_dir   = st.selectbox("Wind direction", ["N","NE","E","SE","S","SW","W","NW"])
-    weight     = st.number_input("Aircraft weight (kg)", 1000, 15000, 5500)
+    wind_dir   = st.selectbox(
+        "Wind direction", 
+        ["N","NE","E","SE","S","SW","W","NW"]
+    )
+    weight     = st.number_input(
+        "Aircraft weight (kg)", 1000, 15000, 5500
+    )
 
 # ─── City & Scenario Data ───────────────────────────────
 SCENARIOS = {
@@ -97,11 +108,11 @@ if "resp" in st.session_state:
     data   = SCENARIOS[inputs["city"]]
     lat, lon = data["gps"].latitude, data["gps"].longitude
 
-    # Map with cleared landing area, obstacles & arrow
+    # 1) Landing Zone Map
     st.subheader("Landing Zone Map")
     m = folium.Map(location=[lat, lon], zoom_start=15, tiles="OpenStreetMap")
 
-    # Cleared landing area (200 m radius)
+    # a) Cleared landing area (200 m radius)
     folium.Circle(
         location=[lat, lon],
         radius=200,
@@ -111,7 +122,7 @@ if "resp" in st.session_state:
         tooltip="Cleared Landing Area (200 m radius)"
     ).add_to(m)
 
-    # Obstacle markers
+    # b) Obstacles
     for obs in data["obstacles"]:
         folium.CircleMarker(
             location=[obs["lat"], obs["lon"]],
@@ -122,14 +133,14 @@ if "resp" in st.session_state:
             tooltip=f"Obstacle: {obs['height']} ft"
         ).add_to(m)
 
-    # Helipad marker
+    # c) Helipad marker
     folium.Marker(
         [lat, lon],
         icon=folium.Icon(color="blue", icon="home", prefix="fa"),
         tooltip="Helipad"
     ).add_to(m)
 
-    # Landing direction arrow
+    # d) Landing direction arrow
     OFF = {
         "N":  (0.01,   0),
         "NE": (0.007, 0.007),
@@ -149,7 +160,7 @@ if "resp" in st.session_state:
 
     st_folium(m, width="100%", height=400)
 
-    # Recommendation details
+    # 2) Landing Recommendation Details
     st.subheader("Landing Recommendation")
     st.markdown(f"- **City:** {inputs['city']}")
     st.markdown(f"- **Weather:** {inputs['weather']}")
@@ -161,7 +172,7 @@ if "resp" in st.session_state:
     risk_label = "Low" if resp.risk_score <= 50 else "High"
     st.markdown(f"- **Risk Score:** {resp.risk_score} ({risk_label})")
 
-    # PDF download
+    # 3) PDF Download
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
