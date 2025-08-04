@@ -19,7 +19,7 @@ st.set_page_config(
     page_title="SmartPad VTOL Landing Assistant",
     layout="wide",
 )
-st.title("🚁 SmartPad VTOL Landing Assistant")
+st.title("SmartPad VTOL Landing Assistant")
 
 # ─── City Definitions ────────────────────────────────────
 CITIES = {
@@ -116,7 +116,7 @@ if st.session_state.resp:
     lon = params_city["gps"].longitude
 
     # Map
-    st.subheader("🗺️ Landing Zone Map")
+    st.subheader("Landing Zone Map")
     m = folium.Map(location=[lat, lon], zoom_start=15, tiles="OpenStreetMap")
     for obs in params_city["obstacles"]:
         folium.CircleMarker(
@@ -132,7 +132,7 @@ if st.session_state.resp:
     st_folium(m, width="100%", height=500)
 
     # Recommendation Details
-    st.subheader("🛬 Landing Recommendation")
+    st.subheader("Landing Recommendation")
     st.markdown(f"**City:** {city}")
     st.markdown(f"**Weather:** {inputs['weather_cond']}")
     performance_desc = "Within PC2 limits" if resp.path_type == "PC2" else "Within PC1 limits"
