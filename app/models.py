@@ -21,5 +21,6 @@ class LandingRequest(BaseModel):
 class LandingResponse(BaseModel):
     path_type: str
     direction: str
+    decision_height: float   # feet above terrain
     risk_score: int
     warnings: List[str]
